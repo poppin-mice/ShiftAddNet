@@ -21,6 +21,8 @@ import time
 
 from adder.adder import Adder2D
 import deepshift
+
+import torchsummary
 os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3,4,5,6,7'
 
 # Training settings
@@ -33,7 +35,7 @@ parser.add_argument('--test_batch_size', type=int, default=256, metavar='N', hel
 parser.add_argument('--epochs', type=int, default=160, metavar='N', help='number of epochs to train')
 parser.add_argument('--start_epoch', type=int, default=0, metavar='N', help='restart point')
 parser.add_argument('--schedule', type=int, nargs='+', default=[80, 120], help='learning rate schedule')
-parser.add_argument('--lr', type=float, default=0.1, metavar='LR', help='learning rate')
+parser.add_argument('--lr', type=float, default=0.01, metavar='LR', help='learning rate')
 parser.add_argument('--lr-sign', default=None, type=float, help='separate initial learning rate for sign params')
 parser.add_argument('--lr_decay', default='stepwise', type=str, choices=['stepwise', 'cosine', 'cyclic_cosine'])
 parser.add_argument('--optimizer', type=str, default='sgd', help='used optimizer')
@@ -69,7 +71,6 @@ parser.add_argument('--eval_only', action='store_true', help='whether only evalu
 
 args = parser.parse_args()
 args.cuda = not args.no_cuda and torch.cuda.is_available()
-
 torch.manual_seed(args.seed)
 if args.cuda:
     torch.cuda.manual_seed(args.seed)
@@ -93,7 +94,7 @@ if args.distributed:
     os.environ['MASTER_PORT'] = args.port
     torch.distributed.init_process_group(backend="nccl")
 
-kwargs = {'num_workers': 1, 'pin_memory': True} if args.cuda else {}
+kwargs = {'num_workers': 32, 'pin_memory': True} if args.cuda else {}
 if args.dataset == 'cifar10':
     train_loader = torch.utils.data.DataLoader(
         datasets.CIFAR10('./data.cifar10', train=True, download=True,
@@ -532,15 +533,16 @@ def test():
     test_loss = 0
     test_acc = 0
     test_acc_5 = 0
-    for data, target in test_loader:
-        if args.cuda:
-            data, target = data.cuda(), target.cuda()
-        data, target = Variable(data, volatile=True), Variable(target)
-        output = model(data)
-        test_loss += F.cross_entropy(output, target, size_average=False).item() # sum up batch loss
-        prec1, prec5 = accuracy(output.data, target.data, topk=(1, 5))
-        test_acc += prec1.item()
-        test_acc_5 += prec5.item()
+    with torch.no_grad():
+        for data, target in test_loader:
+            if args.cuda:
+                data, target = data.cuda(), target.cuda()
+            data, target = Variable(data), Variable(target)
+            output = model(data)
+            test_loss += F.cross_entropy(output, target, reduction='sum').item() # sum up batch loss
+            prec1, prec5 = accuracy(output.data, target.data, topk=(1, 5))
+            test_acc += prec1.item()
+            test_acc_5 += prec5.item()
 
     test_loss /= len(test_loader.dataset)
     print('\nTest set: Average loss: {:.4f}, Prec1: {}/{} ({:.2f}%), Prec5: ({:.2f}%)\n'.format(
@@ -553,9 +555,8 @@ best_prec5 = 0.
 for epoch in range(args.start_epoch, args.epochs):
 
     if args.eval_only:
-        with torch.no_grad():
-            prec1, prec5 = test()
-            print('Prec1: {}; Prec5: {}'.format(prec1, prec5))
+        prec1, prec5 = test()
+        print('Prec1: {}; Prec5: {}'.format(prec1, prec5))
         exit()
 
 
@@ -563,7 +564,7 @@ for epoch in range(args.start_epoch, args.epochs):
         # step-wise LR schedule
         if epoch in args.schedule:
             for param_group in optimizer.param_groups:
-                param_group['lr'] *= 0.1
+                param_group['lr'] *= 0.5
     elif args.lr_decay == 'cosine':
         schedule_cosine_lr_decay.step(epoch)
     elif args.lr_decay == 'cyclic_cosine':
