@@ -521,7 +521,7 @@ def train(epoch):
         #     for name, m in model.named_modules():
         #         if isinstance(m, Adder2D):
         #             m.adder.data = m.round_weight_each_step(m.adder.data, m.weight_bits)
-        if batch_idx % args.log_interval == 0:
+        if batch_idx % 10 == 0:
             print('Train Epoch: {} [{}/{} ({:.1f}%)]\tLoss: {:.6f}'.format(epoch, batch_idx * len(data), len(train_loader.dataset), 100. * batch_idx / len(train_loader), loss.item()))
     history_score[epoch][0] = avg_loss / len(train_loader)
     history_score[epoch][1] = np.round(train_acc / len(train_loader), 2)
