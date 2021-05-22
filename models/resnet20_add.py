@@ -29,14 +29,19 @@ class BasicBlock(nn.Module):
 
     def forward(self, x):
         residual = x
-
+        # print("Basic Block input: ", x[0])
         out = self.conv1(x)
+        # print("Basic Block adder1: ", out[0])
         out = self.bn1(out)
+        # print("Basic Block bn1: ", out[0])
         out = self.relu(out)
+        # print("Basic Block relu1: ", out[0])
 
         out = self.conv2(out)
+        # print("Basic Block adder2: ", out[0])
         out = self.bn2(out)
-
+        # print("Basic Block bn2: ", out[0])
+        # exit(-1)
         if self.downsample is not None:
             residual = self.downsample(x)
 

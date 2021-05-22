@@ -526,7 +526,7 @@ def train(epoch):
     history_score[epoch][0] = avg_loss / len(train_loader)
     history_score[epoch][1] = np.round(train_acc / len(train_loader), 2)
 
-    print('total time for one epoch: {}'.format(time.time()-start_time))
+    print('Total time for one epoch: {:.2f}s'.format(time.time()-start_time))
 
 def test():
     model.eval()
@@ -552,8 +552,8 @@ def test():
 
 best_prec1 = 0.
 best_prec5 = 0.
-for epoch in range(args.start_epoch, args.epochs):
 
+for epoch in range(args.start_epoch, args.epochs):
     if args.eval_only:
         prec1, prec5 = test()
         print('Prec1: {}; Prec5: {}'.format(prec1, prec5))
@@ -590,6 +590,7 @@ for epoch in range(args.start_epoch, args.epochs):
         'optimizer': optimizer.state_dict(),
     }, is_best, epoch, filepath=args.save)
     # break
+
 
 print("Best accuracy: " + str(best_prec1))
 history_score[-1][0] = best_prec1
